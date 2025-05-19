@@ -106,8 +106,23 @@ app.post("/api/users", (req, res) => {
   const newUsers = { id: mockedUsers[mockedUsers.length - 1].id + 1, ...body };
   console.log(newUsers);
   mockedUsers.push(newUsers);
-  res.status(201).send({ message: "User created successfully!" }, newUsers);
+  res
+    .status(201)
+    .send({ message: "User created successfully!", user: newUsers });
 });
 app.listen(PORT, () => {
   console.log(`server running on ${PORT}`);
+});
+
+app.patch("/api/users/:id", (req, res) => {
+  const {
+    body,
+    params: { id },
+  } = req;
+  const parsedId = parseInt(id);
+  if (isNaN(parsedId)) return res.status(400);
+  const findIndex = mockedUsers.findIndex((user) => user.id === parsedId);
+  if (findIndex === -1) return res.status(404);
+  mockedUsers[findIndex] = { ...mockedUsers[findIndex], ...body };
+  return res.sendStatus(200);
 });
