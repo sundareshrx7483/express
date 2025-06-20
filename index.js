@@ -1,4 +1,11 @@
 const express = require("express");
+const {
+  query,
+  validationResult,
+  checkSchema,
+  matchedData,
+} = require("express-validator");
+const { validateUserCreationSchema } = require("./utils/validationSchema.js");
 
 const app = express();
 app.use(express.json());
@@ -25,17 +32,46 @@ const resolvedFindUserMiddleware = (req, res, next) => {
   next();
 };
 
-app.get("/api/users", (req, res) => {
-  const {
-    query: { filter, value },
-  } = req;
-  if (!filter && !value) return res.send(mockedUsers);
-  if (filter && value)
-    return res.send(
-      mockedUsers.filter((user) => user[filter]?.includes(value))
-    );
-  return res.send(mockedUsers);
-});
+app.get(
+  "/api/users",
+  [
+    query("filter")
+      .optional()
+      .isString()
+      .notEmpty()
+      .withMessage("The username must not be empty")
+      .isLength({ min: 5, max: 15 })
+      .withMessage("The Username character must be 5-15 characters"),
+
+    query("value")
+      .optional()
+      .isString()
+      .notEmpty()
+      .withMessage("The username value must not be empty")
+      .isLength({ min: 5, max: 15 })
+      .withMessage("The Username character must be 5-15 characters"),
+  ],
+  (req, res) => {
+    const {
+      query: { filter, value },
+    } = req;
+    console.log(filter);
+    console.log(value);
+    const errors = validationResult(req);
+    console.log(errors);
+    if (!errors.isEmpty())
+      return res.status(400).send({ errors: errors.array() });
+    if (!filter && !value) return res.send(mockedUsers);
+    if (filter && value)
+      return res.send(
+        mockedUsers.filter((user) => user[filter]?.includes(value))
+      );
+    return res.send(mockedUsers);
+  }
+);
+// app.get("/api/users", (req, res) => {
+//   res.status(200).send(mockedUsers);
+// });
 
 app.get("/api/users/:id", resolvedFindUserMiddleware, (req, res) => {
   const user = mockedUsers[req.findUserIndex];
@@ -60,9 +96,14 @@ app.delete("/api/users/:id", resolvedFindUserMiddleware, (req, res) => {
   return res.sendStatus(200);
 });
 
-app.post("/api/users", (req, res) => {
-  const { body } = req;
-  const newUsers = { id: mockedUsers[mockedUsers.length - 1].id + 1, ...body };
+app.post("/api/users", checkSchema(validateUserCreationSchema), (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).send({ errors: errors.array() });
+  }
+  const data = matchedData(req);
+
+  const newUsers = { id: mockedUsers[mockedUsers.length - 1].id + 1, ...data };
   mockedUsers.push(newUsers);
   res
     .status(201)
